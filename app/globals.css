@@ -1,0 +1,263 @@
+/* Add global styles here */
+
+:root {
+  --foreground-0: 0 0% 100%;
+  --background-0: 0 0% 100%;
+  --foreground-1: 240 10% 3.9%;
+  --background-1: 0 0% 98%;
+  --foreground-2: 240 4.8% 35.9%;
+  --background-2: 0 0% 96%;
+  --foreground-3: 240 3.7% 46.1%;
+  --background-3: 0 0% 94%;
+  --foreground-4: 240 3.7% 46.1%;
+  --background-4: 0 0% 92%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+  color: hsl(var(--foreground-1));
+  background-color: hsl(var(--background-1));
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Reset default focus styles */
+a:focus,
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+/* Remove default focus ring for better accessibility */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Ensure proper spacing for headings */
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+/* Ensure proper spacing for paragraphs */
+p {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+/* Ensure proper spacing for lists */
+ul, ol {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+/* Ensure proper spacing for images */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Ensure proper spacing for forms */
+form {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+/* Ensure proper spacing for tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+th, td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid hsl(var(--background-3));
+}
+
+/* Responsive typography */
+@media (min-width: 768px) {
+  h1 {
+    font-size: 2.5rem;
+  }
+  h2 {
+    font-size: 2rem;
+  }
+  h3 {
+    font-size: 1.75rem;
+  }
+}
+
+/* Utility classes */
+.pt-104 {
+  padding-top: 104px;
+}
+
+.max-w-7xl {
+  max-width: 80rem;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.p-4 {
+  padding: 1rem;
+}
+
+.p-6 {
+  padding: 1.5rem;
+}
+
+.mt-8 {
+  margin-top: 2rem;
+}
+
+.mb-8 {
+  margin-bottom: 2rem;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.gap-6 {
+  gap: 1.5rem;
+}
+
+.grid {
+  display: grid;
+}
+
+.grid-cols-1 {
+  grid-template-columns: 1fr;
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr)));
+}
+
+.grid-cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr)));
+}
+
+.grid-cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr)));
+}
+
+@media (min-width: 768px) {
+  .grid-cols-2-md {
+    grid-template-columns: repeat(2, minmax(0, 1fr)));
+  }
+  .grid-cols-3-md {
+    grid-template-columns: repeat(3, minmax(0, 1fr)));
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-cols-3-lg {
+    grid-template-columns: repeat(3, minmax(0, 1fr)));
+  }
+  .grid-cols-4-lg {
+    grid-template-columns: repeat(4, minmax(0, 1fr)));
+  }
+}
+
+/* SEO-related utility classes */
+.hidden {
+  display: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Article-specific styles */
+.article-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.article-content iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+.article-content table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.article-content th,
+.article-content td {
+  padding: 0.5rem;
+  border: 1px solid hsl(var(--background-3));
+}
+
+/* Responsive container */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
