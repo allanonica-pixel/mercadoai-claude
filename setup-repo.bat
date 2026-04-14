@@ -1,89 +1,117 @@
 @echo off
 setlocal enabledelayedexpansion
 
-echo 🚀 Iniciando configuração do repositório Git...
+title Setup Git + GitHub Automatizado
 
-cd /d "C:\Users\allan\openclaude\mercadoai-nextjs"
+echo.
+echo ==========================================
+echo 🚀 Setup Git + GitHub (Nível Profissional)
+echo ==========================================
+echo.
 
-:: Verifica se git está instalado
-echo Verificando se o Git está instalado...
-git --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo ❌ Erro: Git não encontrado. Por favor, instale o Git primeiro.
-    echo Baixe em: https://git-scm.com/download/win
+:: 📁 CONFIGURAÇÃO
+set PROJECT_PATH=C:\Users\allan\openclaude\mercadoai-nextjs
+set GITHUB_USER=allanonica-pixel
+set REPO_NAME=mercadoai-nextjs
+set REMOTE_URL=https://github.com/%GITHUB_USER%/%REPO_NAME%.git
+
+cd /d "%PROJECT_PATH%" || (
+    echo ❌ Erro ao acessar pasta do projeto
     pause
     exit /b 1
 )
 
-echo ✅ Git encontrado.
+:: 🔍 Verifica Git
+git --version >nul 2>&1 || (
+    echo ❌ Git não instalado
+    pause
+    exit /b 1
+)
 
-:: Verifica se já é um repositório git
-echo Verificando se já é um repositório Git...
-git status >nul 2>&1
-if %errorlevel% equ 0 (
-    echo ⚠️  Já é um repositório Git. Pulando inicialização.
-) else (
-    echo Inicializando novo repositório Git...
+echo ✅ Git OK
+
+:: 🔧 Verifica config Git
+for /f "delims=" %%i in ('git config --global user.name') do set GIT_NAME=%%i
+for /f "delims=" %%i in ('git config --global user.email') do set GIT_EMAIL=%%i
+
+if "%GIT_NAME%"=="" (
+    echo ❌ Configure seu user.name
+    pause
+    exit /b 1
+)
+
+if "%GIT_EMAIL%"=="" (
+    echo ❌ Configure seu user.email
+    pause
+    exit /b 1
+)
+
+echo ✅ Git configurado
+
+:: 📦 Inicializa repo
+git rev-parse --is-inside-work-tree >nul 2>&1
+if %errorlevel% neq 0 (
+    echo 🆕 Inicializando repositório...
     git init
-    if %errorlevel% neq 0 (
-        echo ❌ Erro ao inicializar o repositório Git.
-        pause
-        exit /b 1
-    )
-    echo ✅ Repositório Git inicializado com sucesso.
 )
 
-:: Adiciona todos os arquivos
-echo Adicionando todos os arquivos ao staging...
+:: 🧠 .gitignore Next.js
+if not exist ".gitignore" (
+    echo Criando .gitignore...
+
+    (
+    echo node_modules/
+    echo .next/
+    echo out/
+    echo .env*
+    echo .vercel
+    echo dist/
+    ) > .gitignore
+)
+
+:: ➕ Add
 git add .
-if %errorlevel% neq 0 (
-    echo ❌ Erro ao adicionar arquivos ao staging.
-    pause
-    exit /b 1
-)
-echo ✅ Arquivos adicionados ao staging.
 
-:: Faz o primeiro commit
-echo Criando o primeiro commit...
-git commit -m "feat: initial commit with Next.js 15 App Router structure and Supabase integration"
+:: 🧾 Commit se necessário
+git diff --cached --quiet
 if %errorlevel% neq 0 (
-    echo ❌ Erro ao criar o commit.
-    pause
-    exit /b 1
+    git commit -m "feat: initial Next.js SEO project structure with Supabase and scalable architecture"
+    echo ✅ Commit criado
+) else (
+    echo ⚠️ Nada para commit
 )
-echo ✅ Primeiro commit criado com sucesso.
 
-:: Configura branch principal como 'main'
-echo Configurando branch principal como 'main'...
+:: 🌿 Branch main
 git branch -M main
+
+:: 🔗 Configura remote automaticamente
+git remote get-url origin >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ❌ Erro ao configurar branch principal.
+    echo 🔗 Adicionando remote origin...
+    git remote add origin %REMOTE_URL%
+    echo ✅ Remote conectado: %REMOTE_URL%
+) else (
+    echo ⚠️ Remote já existe
+)
+
+:: 🚀 Push automático
+echo.
+echo 🚀 Enviando para o GitHub...
+
+git push -u origin main
+if %errorlevel% neq 0 (
+    echo ❌ Erro no push (possível autenticação)
+    echo 👉 Use GitHub Desktop ou configure token
     pause
     exit /b 1
 )
-echo ✅ Branch principal configurado como 'main'.
 
-:: Verifica se o usuário já configurou nome e email
-echo Verificando configuração do Git...
-git config --global user.name >nul 2>&1
-if %errorlevel% neq 0 (
-    echo ⚠️  Configuração global do Git não encontrada.
-    echo Por favor, configure seu nome e email:
-    echo   git config --global user.name "allanonica-pixel"
-    echo   git config --global user.email "allanonica@gmail.com"
-    pause
-)
+echo.
+echo ==========================================
+echo 🎉 Projeto publicado com sucesso!
+echo ==========================================
+echo.
+echo 🔗 https://github.com/%GITHUB_USER%/%REPO_NAME%
+echo.
 
-echo 🎉 Configuração do repositório concluída com sucesso!
-echo.
-echo 🔗 Para conectar ao GitHub:
-:: Mostra instruções para adicionar o repositório remoto
-echo 1. Crie um novo repositório no GitHub em https://github.com/new
-echo 2. Copie a URL do repositório (ex: https://github.com/SEU_USUARIO/mercadoai-nextjs.git)
-echo 3. Execute este comando (substitua pela URL real):
-echo    git remote add origin https://github.com/allanonica-pixel/mercadoai-nextjs.git
-echo 4. Execute:
-echo    git push -u origin main
-echo.
-echo 💡 Dica: Você pode copiar e colar os comandos acima diretamente no terminal.
 pause
