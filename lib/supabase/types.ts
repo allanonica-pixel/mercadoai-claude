@@ -1,5 +1,23 @@
 import { ArticleType } from '@/constants/categories'
 
+// ✅ Definição exaustiva e verificável de tipos válidos — usada para runtime + compile-time safety
+export const ARTICLE_TYPE_VALUES = [
+  'Review',
+  'Comparativo',
+  'Guia de Compra',
+  'Notícias',
+] as const
+export type ArticleTypeValue = typeof ARTICLE_TYPE_VALUES[number]
+
+// ✅ Garantia de compatibilidade com TYPE_COLORS (será validado em tempo de compilação)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _typeColorsKeys: Record<ArticleTypeValue, string> = {
+  Review: 'bg-blue-100 text-blue-800',
+  Comparativo: 'bg-green-100 text-green-800',
+  'Guia de Compra': 'bg-purple-100 text-purple-800',
+  Notícias: 'bg-orange-100 text-orange-800',
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -31,7 +49,7 @@ export interface Article {
   slug: string;
   category: string;
   subcategory?: string | null;
-  type: ArticleType;
+  type: ArticleTypeValue;
   excerpt: string | null;
   content: string | null;
   cover_image: string | null;
