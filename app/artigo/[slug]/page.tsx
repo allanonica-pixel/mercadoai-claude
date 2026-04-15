@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Article, Product } from '@/lib/supabase/types'
 import { formatBRL } from '@/lib/utils'
 import { TYPE_COLORS } from '@/constants/categories'
+import { XMarkIcon } from '@heroicons/react/outline'
 
 const SITE_URL = 'https://mercadoai.com'
 const SITE_NAME = 'MercadoAI'
@@ -474,5 +475,13 @@ export default async function ArticlePage({
                   rel="noopener noreferrer"
                   className="text-gray-500 hover:text-blue-600 transition-colors"
                 >
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.564-2.005.974-3.127 1.495a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.061c0 2.385 1.708 4.374 3.947 4.827a4.996 4.996 0 01-2.212.085c.64.181 1.45 0.21 2.096.015a4.92 4.92 0 002.04.845 4.996 4.996 0 01-2.228-.616c.64.181 1.45 0.21 2.096.015a4.92 4.92 0 002.04.845 4.996 4.996 0 01-2.228-.616c.64.181 1.45 0.21 2.096.015a4.92 4.92 0 002.04.845 4.996 4.996 0 01-2.228-.616c.64.181 1.45 0.21 2.096.015a4.92 4.92 0 002.04.845 4.996 4.996 0 01-2.228-.616c.64.181 1.45 0.21 2.096.015a4.92 4.92 0 002.04.845 4.996 4.996 0 01-2.228-.616c.64.181 1.45 0.21 2.096.015a4.92 4.92 0 002.04.845 4.996 4.996 0 01-2.228-.616c.64.181 1.45 0.21 2.096.015a4.92 4.92 0 002.04.845 4.996 4.996 0 01-2.228-.616c.64.181 1.45
+                  <XMarkIcon className="w-6 h-6" />
+                </a>
+              </div>
+            </div>
+          </footer>
+        </article>
+      </div>
+    </div>
+  )
+}
