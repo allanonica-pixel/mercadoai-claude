@@ -1,34 +1,45 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Sora, DM_Sans } from 'next/font/google'
 import './globals.css'
-import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
 import { SITE_URL } from '@/lib/constants'
 
-const inter = Inter({ subsets: ['latin'] })
+const sora = Sora({
+  variable: '--font-sora',
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+})
+
+const dmSans = DM_Sans({
+  variable: '--font-dm-sans',
+  subsets: ['latin'],
+  weight: ['400', '500'],
+})
 
 export const metadata: Metadata = {
   title: {
-    default: 'Mercadoai — Comparativos e Reviews de Produtos',
-    template: '%s | Mercadoai',
+    default: 'MercadoAI — Os melhores produtos com os melhores preços',
+    template: '%s | MercadoAI',
   },
-  description: 'Encontre os melhores produtos com análises detalhadas, comparações e ofertas exclusivas nos maiores marketplaces do Brasil.',
+  description:
+    'Comparamos produtos, analisamos preços e ajudamos você a encontrar as melhores ofertas nos principais marketplaces do Brasil.',
   keywords: 'comparativo de produtos, reviews, melhores ofertas, mercado livre, amazon, shopee, tecnologia',
-  authors: [{ name: 'Equipe Mercadoai' }],
-  creator: 'Mercadoai',
+  authors: [{ name: 'Equipe MercadoAI' }],
+  creator: 'MercadoAI',
   openGraph: {
-    title: 'Mercadoai — Comparativos e Reviews de Produtos',
-    description: 'Encontre os melhores produtos com análises detalhadas, comparações e ofertas exclusivas.',
+    title: 'MercadoAI — Os melhores produtos com os melhores preços',
+    description:
+      'Comparamos produtos e ajudamos você a encontrar as melhores ofertas nos principais marketplaces do Brasil.',
     url: SITE_URL,
-    siteName: 'Mercadoai',
+    siteName: 'MercadoAI',
     images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630 }],
     locale: 'pt_BR',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Mercadoai — Comparativos e Reviews de Produtos',
-    description: 'Encontre os melhores produtos com análises detalhadas, comparações e ofertas exclusivas.',
+    title: 'MercadoAI — Os melhores produtos com os melhores preços',
+    description:
+      'Comparamos produtos e ajudamos você a encontrar as melhores ofertas nos principais marketplaces do Brasil.',
     images: [`${SITE_URL}/og-image.png`],
     site: '@mercadoai',
   },
@@ -48,14 +59,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
-      <body className={inter.className}>
-        <Navbar />
-        <main className="flex-grow">
-          {children}
-        </main>
-        <Footer />
-      </body>
+    <html lang="pt-BR" className={`${sora.variable} ${dmSans.variable}`}>
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   )
 }
