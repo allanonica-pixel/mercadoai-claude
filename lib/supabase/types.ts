@@ -39,6 +39,7 @@ export interface Product {
   badge: string | null;
   is_featured: boolean;
   is_active: boolean;
+  is_deal?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -90,6 +91,7 @@ export interface Comparison {
   id: string;
   title: string;
   slug: string;
+  excerpt?: string | null;
   product_ids: string[];
   winner_id: string | null;
   criteria: Record<string, number[]>;
