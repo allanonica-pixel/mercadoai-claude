@@ -3,123 +3,99 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createStaticClient } from '@/lib/supabase/static'
+import { Product } from '@/lib/supabase/types'
 import { formatBRL } from '@/lib/utils'
+import { CATEGORY_SLUGS } from '@/constants/categories'
 import { SITE_URL } from '@/lib/constants'
 
 export const revalidate = 3600
 
-const SITE_NAME = 'Mercadoai'
-
 export async function generateStaticParams() {
   const supabase = createStaticClient()
-  const { data: products } = await supabase
-    .from('products')
-    .select('slug')
-    .eq('is_active', true)
-    .limit(200)
-
-  return (products ?? []).map((p) => ({ slug: p.slug }))
+  const { data } = await supabase.from('products').select('slug').eq('is_active', true).limit(200)
+  return (data ?? []).map((p) => ({ slug: p.slug }))
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string }
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const supabase = await createClient()
   const { data: product } = await supabase
     .from('products')
-    .select('name, brand, category, price, image_url, marketplace')
+    .select('name, brand, category, price, image_url, slug')
     .eq('slug', params.slug)
     .maybeSingle()
 
-  if (!product) {
-    return {
-      title: 'Produto não encontrado | ' + SITE_NAME,
-      robots: { index: false, follow: false },
-    }
-  }
+  if (!product) return { title: 'Produto não encontrado', robots: { index: false, follow: false } }
 
-  const title = `${product.name}${product.brand ? ` — ${product.brand}` : ''} | ${SITE_NAME}`
-  const description = `${product.name} por ${formatBRL(product.price)} no ${product.marketplace ?? 'marketplace'}. Veja especificações, avaliações e onde comprar com o melhor preço.`
-  const canonicalUrl = `${SITE_URL}/produto/${params.slug}`
+  const title = `${product.name} — Melhor Preço | MercadoAI`
+  const description = `Compare o preço do ${product.name} ${product.brand ? `da ${product.brand}` : ''} nos principais marketplaces. Análise completa e oferta no MercadoAI.`
 
   return {
     title,
     description,
-    keywords: `${product.name}, ${product.brand ?? ''}, ${product.category}, comprar, preço, ${SITE_NAME}`,
-    alternates: { canonical: canonicalUrl },
+    alternates: { canonical: `${SITE_URL}/produto/${params.slug}` },
     openGraph: {
-      type: 'website',
       title,
       description,
-      url: canonicalUrl,
-      siteName: SITE_NAME,
+      url: `${SITE_URL}/produto/${params.slug}`,
+      siteName: 'MercadoAI',
+      images: product.image_url ? [{ url: product.image_url, width: 800, height: 800, alt: product.name }] : [],
       locale: 'pt_BR',
-      ...(product.image_url
-        ? { images: [{ url: product.image_url, width: 800, height: 800, alt: product.name }] }
-        : {}),
+      type: 'website',
     },
-    twitter: {
-      card: product.image_url ? 'summary_large_image' : 'summary',
-      title,
-      description,
-      ...(product.image_url ? { images: [product.image_url] } : {}),
-    },
-    robots: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
+    robots: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
   }
 }
 
-export default async function ProdutoPage({
-  params,
-}: {
-  params: { slug: string }
-}) {
+export default async function ProductPage({ params }: { params: { slug: string } }) {
   const supabase = await createClient()
 
   const { data: product } = await supabase
     .from('products')
     .select('*')
     .eq('slug', params.slug)
-    .eq('is_active', true)
     .maybeSingle()
 
   if (!product) notFound()
 
-  // Produtos relacionados da mesma categoria
+  // Produtos relacionados (mesma categoria)
   const { data: related } = await supabase
     .from('products')
-    .select('id, name, slug, image_url, price, discount_pct, rating')
+    .select('*')
     .eq('category', product.category)
     .eq('is_active', true)
-    .neq('id', product.id)
+    .neq('slug', params.slug)
+    .order('is_featured', { ascending: false })
     .limit(4)
 
-  const schema = {
+  const categorySlug = CATEGORY_SLUGS[product.category] ?? product.category.toLowerCase()
+  const productUrl = `${SITE_URL}/produto/${params.slug}`
+
+  const savings = product.original_price && product.original_price > product.price
+    ? product.original_price - product.price
+    : 0
+
+  // JSON-LD Product schema
+  const productSchema = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
-    description: `${product.name} — ${product.category}${product.subcategory ? `, ${product.subcategory}` : ''}`,
-    ...(product.image_url ? { image: product.image_url } : {}),
-    ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand } } : {}),
+    description: `${product.name} ${product.brand ? `da ${product.brand}` : ''} — Compare preços e confira a análise completa no MercadoAI.`,
+    image: product.image_url ? [product.image_url] : [],
+    brand: product.brand ? { '@type': 'Brand', name: product.brand } : undefined,
+    sku: product.id,
     offers: {
       '@type': 'Offer',
-      url: `${SITE_URL}/produto/${params.slug}`,
+      url: product.affiliate_url ?? productUrl,
       priceCurrency: 'BRL',
       price: product.price,
       availability: 'https://schema.org/InStock',
-      seller: { '@type': 'Organization', name: product.seller ?? product.marketplace ?? SITE_NAME },
+      seller: { '@type': 'Organization', name: product.marketplace ?? 'MercadoAI' },
     },
-    ...(product.rating > 0
-      ? {
-          aggregateRating: {
-            '@type': 'AggregateRating',
-            ratingValue: product.rating,
-            bestRating: 5,
-            ratingCount: product.review_count ?? 1,
-          },
-        }
-      : {}),
+    aggregateRating: product.rating > 0 ? {
+      '@type': 'AggregateRating',
+      ratingValue: product.rating,
+      reviewCount: product.review_count,
+    } : undefined,
   }
 
   const breadcrumbSchema = {
@@ -127,79 +103,92 @@ export default async function ProdutoPage({
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Início', item: `${SITE_URL}/` },
-      { '@type': 'ListItem', position: 2, name: product.category, item: `${SITE_URL}/categoria/${encodeURIComponent(product.category)}` },
-      { '@type': 'ListItem', position: 3, name: product.name, item: `${SITE_URL}/produto/${params.slug}` },
+      { '@type': 'ListItem', position: 2, name: 'Produtos', item: `${SITE_URL}/products` },
+      { '@type': 'ListItem', position: 3, name: product.category, item: `${SITE_URL}/categoria/${categorySlug}` },
+      { '@type': 'ListItem', position: 4, name: product.name, item: productUrl },
     ],
   }
 
   return (
-    <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+    <div className="pt-[104px] bg-gray-50 min-h-screen">
 
-      <div className="pt-[104px]">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-          {/* Breadcrumb */}
-          <nav className="text-sm text-gray-500 mb-6 flex items-center gap-2 flex-wrap">
-            <Link href="/" className="hover:text-gray-900 transition-colors">Início</Link>
-            <span>/</span>
-            <Link href={`/categoria/${encodeURIComponent(product.category)}`} className="hover:text-gray-900 transition-colors">{product.category}</Link>
-            <span>/</span>
-            <span className="text-gray-900 font-medium line-clamp-1 max-w-xs">{product.name}</span>
+      {/* Breadcrumb */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+          <nav className="flex items-center gap-1.5 text-xs text-gray-400 flex-wrap">
+            <Link href="/" className="hover:text-gray-600 transition-colors">Home</Link>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <Link href="/products" className="hover:text-gray-600 transition-colors">Produtos</Link>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <Link href={`/categoria/${categorySlug}`} className="hover:text-gray-600 transition-colors">{product.category}</Link>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <span className="text-gray-600 truncate max-w-xs">{product.name}</span>
           </nav>
+        </div>
+      </div>
 
-          {/* Layout principal */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* Produto principal */}
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-10">
+          <div className="flex flex-col md:flex-row gap-0">
+
             {/* Imagem */}
-            <div className="bg-gray-50 rounded-2xl flex items-center justify-center p-8 min-h-[320px]">
+            <div className="md:w-1/2 bg-gray-50 flex items-center justify-center p-8 min-h-80">
               {product.image_url ? (
                 <img
                   src={product.image_url}
                   alt={product.name}
-                  className="max-h-72 w-auto object-contain"
+                  className="w-full max-h-96 object-contain"
+                  fetchPriority="high"
                 />
               ) : (
-                <div className="flex flex-col items-center gap-3 text-gray-300">
-                  <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span className="text-sm">Sem imagem</span>
-                </div>
+                <span className="text-8xl opacity-20">📦</span>
               )}
             </div>
 
-            {/* Informações */}
-            <div className="flex flex-col">
+            {/* Info */}
+            <div className="md:w-1/2 p-8 flex flex-col">
+
               {/* Badges */}
-              <div className="flex flex-wrap gap-2 mb-3">
-                {product.category && (
-                  <Link href={`/categoria/${encodeURIComponent(product.category)}`}
-                    className="text-xs bg-orange-50 text-orange-600 font-semibold px-2.5 py-1 rounded-full hover:bg-orange-100 transition-colors">
-                    {product.category}
-                  </Link>
-                )}
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                <Link
+                  href={`/categoria/${categorySlug}`}
+                  className="px-2.5 py-0.5 rounded-full bg-orange-50 border border-orange-200 text-orange-600 text-xs font-semibold"
+                >
+                  {product.category}
+                </Link>
                 {product.badge && (
-                  <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-2.5 py-1 rounded-full">
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
                     {product.badge}
                   </span>
                 )}
-                {product.free_shipping && (
-                  <span className="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">
-                    Frete grátis
+                {product.is_featured && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold">
+                    ⭐ Destaque
                   </span>
                 )}
               </div>
 
-              {product.brand && (
-                <p className="text-sm text-gray-500 mb-1">{product.brand}</p>
-              )}
+              {/* Nome */}
+              <h1 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight mb-2" itemProp="name">
+                {product.name}
+              </h1>
 
-              <h1 className="text-xl font-bold text-gray-900 mb-4 leading-snug">{product.name}</h1>
+              {/* Marca + marketplace */}
+              <div className="flex items-center gap-3 text-sm text-gray-500 mb-5">
+                {product.brand && <span>Marca: <strong className="text-gray-700">{product.brand}</strong></span>}
+                {product.marketplace && (
+                  <>
+                    <span className="text-gray-300">|</span>
+                    <span>Via: <strong className="text-gray-700">{product.marketplace}</strong></span>
+                  </>
+                )}
+              </div>
 
-              {/* Rating */}
+              {/* Avaliação */}
               {product.rating > 0 && (
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-5">
                   <div className="flex items-center gap-0.5">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <svg
@@ -213,104 +202,121 @@ export default async function ProdutoPage({
                     ))}
                   </div>
                   <span className="text-sm font-semibold text-gray-700">{product.rating.toFixed(1)}</span>
-                  {product.review_count > 0 && (
-                    <span className="text-xs text-gray-400">({product.review_count} avaliações)</span>
-                  )}
+                  <span className="text-sm text-gray-400">({product.review_count} avaliações)</span>
                 </div>
               )}
 
-              {/* Preço */}
+              {/* Preços */}
               <div className="mb-6">
                 {product.original_price && product.original_price > product.price && (
-                  <p className="text-sm text-gray-400 line-through mb-0.5">{formatBRL(product.original_price)}</p>
+                  <p className="text-sm text-gray-400 line-through mb-0.5">
+                    {formatBRL(product.original_price)}
+                  </p>
                 )}
                 <div className="flex items-baseline gap-3">
-                  <span className="text-3xl font-black text-gray-900">{formatBRL(product.price)}</span>
+                  <p className="text-4xl font-black text-gray-900">{formatBRL(product.price)}</p>
                   {product.discount_pct && product.discount_pct > 0 && (
-                    <span className="text-sm font-bold bg-red-100 text-red-700 px-2.5 py-1 rounded-full">
+                    <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 text-sm font-black">
                       -{product.discount_pct}%
                     </span>
                   )}
                 </div>
-                {product.marketplace && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Disponível em <span className="font-medium text-gray-700">{product.marketplace}</span>
-                    {product.seller ? ` — Vendido por ${product.seller}` : ''}
+                {savings > 0 && (
+                  <p className="text-sm font-semibold text-emerald-600 mt-1">
+                    Você economiza {formatBRL(savings)}
+                  </p>
+                )}
+                {product.free_shipping && (
+                  <p className="text-sm text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Frete grátis
                   </p>
                 )}
               </div>
 
-              {/* CTA */}
-              {product.affiliate_url ? (
-                <a
-                  href={product.affiliate_url}
-                  target="_blank"
-                  rel="nofollow noopener noreferrer"
-                  className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-center text-sm transition-colors mb-3"
-                >
-                  Ver melhor preço em {product.marketplace ?? 'marketplace'} →
-                </a>
-              ) : null}
-
-              <p className="text-xs text-gray-400 text-center">
-                Ao clicar você será redirecionado para o site do parceiro. Este site pode receber comissão de afiliado.
-              </p>
+              {/* CTAs */}
+              <div className="flex flex-col gap-3 mt-auto">
+                {product.affiliate_url ? (
+                  <a
+                    href={product.affiliate_url}
+                    target="_blank"
+                    rel="nofollow noopener noreferrer"
+                    className="flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-base transition-colors shadow-sm hover:shadow-orange-200"
+                  >
+                    Ver oferta no {product.marketplace ?? 'marketplace'}
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                ) : (
+                  <button disabled className="flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-gray-200 text-gray-500 font-bold text-base cursor-not-allowed">
+                    Oferta indisponível
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-
-          {/* Especificações */}
-          {product.specs && Object.keys(product.specs).length > 0 && (
-            <section className="mb-12">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Especificações Técnicas</h2>
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <table className="w-full text-sm">
-                  <tbody className="divide-y divide-gray-100">
-                    {Object.entries(product.specs).map(([key, value]) => (
-                      <tr key={key} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-5 py-3 font-medium text-gray-600 w-2/5">{key}</td>
-                        <td className="px-5 py-3 text-gray-900">{String(value)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-
-          {/* Produtos relacionados */}
-          {related && related.length > 0 && (
-            <section>
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Produtos similares em {product.category}</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {related.map((r) => (
-                  <Link
-                    key={r.id}
-                    href={`/produto/${r.slug}`}
-                    className="group bg-white rounded-xl border border-gray-200 p-4 hover:border-orange-200 hover:shadow-sm transition-all"
-                  >
-                    {r.image_url && (
-                      <div className="bg-gray-50 rounded-lg flex items-center justify-center h-28 mb-3">
-                        <img src={r.image_url} alt={r.name} className="max-h-24 w-auto object-contain" />
-                      </div>
-                    )}
-                    <h3 className="text-xs font-semibold text-gray-800 line-clamp-2 mb-2 group-hover:text-orange-600 transition-colors">
-                      {r.name}
-                    </h3>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-black text-gray-900">{formatBRL(r.price)}</span>
-                      {r.discount_pct && r.discount_pct > 0 && (
-                        <span className="text-xs font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
-                          -{r.discount_pct}%
-                        </span>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
         </div>
+
+        {/* Especificações técnicas */}
+        {product.specs && Object.keys(product.specs).length > 0 && (
+          <section className="bg-white rounded-2xl border border-gray-200 p-8 mb-10">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Especificações técnicas</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
+              {Object.entries(product.specs).map(([key, value], i) => (
+                <div key={key} className={`flex items-start gap-3 py-3 px-4 ${i % 2 === 0 ? 'sm:pr-8' : 'sm:pl-8'}`}>
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide min-w-[120px] mt-0.5">{key}</span>
+                  <span className="text-sm text-gray-800 font-medium">{String(value)}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Produtos relacionados */}
+        {related && related.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-bold text-gray-900">Produtos relacionados</h2>
+              <Link href={`/categoria/${categorySlug}`} className="text-sm font-semibold text-orange-500 hover:text-orange-600">
+                Ver categoria →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {related.map((p: Product) => (
+                <Link
+                  key={p.id}
+                  href={`/produto/${p.slug}`}
+                  className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group flex flex-col"
+                >
+                  <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden relative">
+                    {p.discount_pct && p.discount_pct > 0 && (
+                      <span className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full bg-rose-500 text-white text-xs font-black">
+                        -{p.discount_pct}%
+                      </span>
+                    )}
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={p.name} className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform" />
+                    ) : (
+                      <span className="text-4xl opacity-20">📦</span>
+                    )}
+                  </div>
+                  <div className="p-4 flex flex-col flex-1">
+                    <p className="text-xs text-gray-400 mb-1">{p.brand}</p>
+                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 flex-1 mb-2 group-hover:text-orange-600 transition-colors">{p.name}</h3>
+                    <p className="text-base font-black text-gray-900">{formatBRL(p.price)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
-    </>
+
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+    </div>
   )
 }

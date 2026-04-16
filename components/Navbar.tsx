@@ -6,16 +6,68 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { CATEGORIES, CATEGORY_SLUGS } from '@/constants/categories'
 
+// Ícones SVG para cada categoria do dropdown
+const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  'Eletrônicos': (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <rect x="2" y="3" width="20" height="14" rx="2" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 21h8M12 17v4" />
+    </svg>
+  ),
+  'Smartphones': (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <rect x="5" y="2" width="14" height="20" rx="2" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18h.01" />
+    </svg>
+  ),
+  'Notebooks': (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2 18h20" />
+    </svg>
+  ),
+  'Games': (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 11h6M12 8v6M19 3l-5 5M14 3h5v5" />
+    </svg>
+  ),
+  'Eletrodomésticos': (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+      <polyline strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} points="9 22 9 12 15 12 15 22" />
+    </svg>
+  ),
+  'Fones': (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 18v-6a9 9 0 0118 0v6" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z" />
+    </svg>
+  ),
+  'Smartwatches': (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="5" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 7v5l3 3M9 3h6l1 4H8zM8 17l-1 4h10l-1-4" />
+    </svg>
+  ),
+  'Casa & Cozinha': (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 22V12h6v10" />
+    </svg>
+  ),
+}
+
 const categoryBar = [
   { label: 'Todos', href: '/articles' },
-  { label: 'Eletrônicos', href: '/categoria/Eletrônicos' },
-  { label: 'Smartphones', href: '/categoria/Smartphones' },
-  { label: 'Notebooks', href: '/categoria/Notebooks' },
-  { label: 'Games', href: '/categoria/Games' },
-  { label: 'Eletrodomésticos', href: '/categoria/Eletrodomésticos' },
-  { label: 'Fones', href: '/categoria/Fones' },
-  { label: 'Smartwatches', href: '/categoria/Smartwatches' },
-  { label: 'Casa & Cozinha', href: '/categoria/Casa & Cozinha' },
+  { label: 'Eletrônicos', href: '/categoria/eletronicos' },
+  { label: 'Smartphones', href: '/categoria/smartphones' },
+  { label: 'Notebooks', href: '/categoria/notebooks' },
+  { label: 'Games', href: '/categoria/games' },
+  { label: 'Eletrodomésticos', href: '/categoria/eletrodomesticos' },
+  { label: 'Fones', href: '/categoria/fones' },
+  { label: 'Smartwatches', href: '/categoria/smartwatches' },
+  { label: 'Casa & Cozinha', href: '/categoria/casa-cozinha' },
 ]
 
 export default function Navbar() {
@@ -86,15 +138,18 @@ export default function Navbar() {
               </button>
 
               {dropdownOpen && (
-                <div className="absolute left-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-100 z-50 py-1">
+                <div className="absolute left-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-2 overflow-hidden">
                   {Object.keys(CATEGORIES).filter(c => c !== 'Geral').map((cat) => (
                     <Link
                       key={cat}
-                      href={`/categoria/${encodeURIComponent(cat)}`}
+                      href={`/categoria/${CATEGORY_SLUGS[cat] ?? cat.toLowerCase()}`}
                       onClick={() => setDropdownOpen(false)}
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors group"
                     >
-                      {cat}
+                      <span className="text-gray-400 group-hover:text-orange-500 transition-colors flex-shrink-0">
+                        {CATEGORY_ICONS[cat]}
+                      </span>
+                      <span className="font-medium">{cat}</span>
                     </Link>
                   ))}
                 </div>
@@ -113,18 +168,23 @@ export default function Navbar() {
 
           {/* Busca */}
           <div className="hidden md:flex items-center">
-            <div className={`flex items-center border border-gray-200 rounded-full bg-gray-50 transition-all duration-200 ${searchFocused ? 'w-72 border-orange-300 bg-white shadow-sm' : 'w-48'}`}>
+            <form
+              action="/products"
+              method="get"
+              className={`flex items-center border border-gray-200 rounded-full bg-gray-50 transition-all duration-200 ${searchFocused ? 'w-72 border-orange-300 bg-white shadow-sm' : 'w-48'}`}
+            >
               <svg className="w-4 h-4 ml-3 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
                 type="search"
+                name="q"
                 placeholder="Buscar produtos..."
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
                 className="w-full bg-transparent text-sm text-gray-700 placeholder-gray-400 px-3 py-2 outline-none"
               />
-            </div>
+            </form>
           </div>
 
           {/* Hamburger mobile */}
@@ -155,10 +215,11 @@ export default function Navbar() {
               {Object.keys(CATEGORIES).filter(c => c !== 'Geral').map((cat) => (
                 <Link
                   key={cat}
-                  href={`/categoria/${encodeURIComponent(cat)}`}
+                  href={`/categoria/${CATEGORY_SLUGS[cat] ?? cat.toLowerCase()}`}
                   onClick={() => setMobileOpen(false)}
-                  className="block py-1.5 text-sm text-gray-600 hover:text-orange-500"
+                  className="flex items-center gap-3 py-2 text-sm text-gray-600 hover:text-orange-500 transition-colors"
                 >
+                  <span className="text-gray-400">{CATEGORY_ICONS[cat]}</span>
                   {cat}
                 </Link>
               ))}

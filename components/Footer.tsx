@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import NewsletterForm from '@/components/NewsletterForm'
+import { CATEGORY_SLUGS } from '@/constants/categories'
 
 export default function Footer() {
   const popularCategories = [
@@ -12,6 +13,8 @@ export default function Footer() {
     { label: 'Reviews', href: '/articles?categoria=Review' },
     { label: 'Melhores Ofertas', href: '/ofertas' },
     { label: 'Comparativos', href: '/comparativo' },
+    { label: 'Sobre Nós', href: '/sobrenos' },
+    { label: 'Contato', href: '/sobrenos#contato' },
     { label: 'Política de Privacidade', href: '/privacidade' },
     { label: 'Termos de Uso', href: '/termos' },
   ]
@@ -72,7 +75,7 @@ export default function Footer() {
               {popularCategories.map((cat) => (
                 <li key={cat}>
                   <Link
-                    href={`/categoria/${encodeURIComponent(cat)}`}
+                    href={`/categoria/${CATEGORY_SLUGS[cat] ?? cat.toLowerCase()}`}
                     className="flex items-center gap-2 text-sm text-stone-400 hover:text-orange-400 transition-colors"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-orange-500 flex-shrink-0" />

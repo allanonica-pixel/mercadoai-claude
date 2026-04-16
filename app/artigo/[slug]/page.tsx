@@ -1,25 +1,26 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createStaticClient } from '@/lib/supabase/static'
 import { Article, Product } from '@/lib/supabase/types'
-import { formatBRL } from '@/lib/utils'
+import { formatBRL, formatDate } from '@/lib/utils'
 import { TYPE_COLORS } from '@/constants/categories'
-import { notFound } from 'next/navigation'
+import { CATEGORY_SLUGS } from '@/constants/categories'
+import { SITE_URL } from '@/lib/constants'
+import ShareButtons from '@/components/ShareButtons'
+import NewsletterForm from '@/components/NewsletterForm'
 
-export const revalidate = 3600 // ISR: revalida a cada 1 hora
-
-const SITE_URL = 'https://mercadoai.com'
-const SITE_NAME = 'MercadoAI'
+export const revalidate = 3600
 
 export async function generateStaticParams() {
   const supabase = createStaticClient()
-  const { data: articles } = await supabase
+  const { data } = await supabase
     .from('articles')
     .select('slug')
     .order('published_at', { ascending: false })
     .limit(100)
-
-  return (articles ?? []).map((a) => ({ slug: a.slug }))
+  return (data ?? []).map((a) => ({ slug: a.slug }))
 }
 
 export async function generateMetadata({
@@ -30,65 +31,36 @@ export async function generateMetadata({
   const supabase = await createClient()
   const { data: article } = await supabase
     .from('articles')
-    .select('*')
+    .select('title, excerpt, cover_image, category, type, author_name, published_at, updated_at, meta_title, meta_description, meta_keywords, slug')
     .eq('slug', params.slug)
     .maybeSingle()
 
   if (!article) {
-    return {
-      title: 'Artigo não encontrado | MercadoAI',
-      description: 'O artigo solicitado não foi encontrado.',
-      robots: { index: false, follow: false },
-    }
+    return { title: 'Artigo não encontrado', robots: { index: false, follow: false } }
   }
 
-  const metaTitle = article.meta_title
-    ? `${article.meta_title} | ${SITE_NAME}`
-    : `${article.title} | ${SITE_NAME}`
-
-  const metaDescription = article.meta_description
-    ? article.meta_description.slice(0, 160)
-    : article.excerpt
-    ? article.excerpt.slice(0, 160)
-    : `${article.title} — Leia o ${article.type} completo no ${SITE_NAME}.`
-
-  const metaKeywords = article.meta_keywords
-    ? article.meta_keywords
-    : `${article.title}, ${article.category}${article.subcategory ? `, ${article.subcategory}` : ''}, ${article.type}, ${SITE_NAME}, melhores produtos, comparar preços`
-
+  const metaTitle = article.meta_title ? `${article.meta_title} | MercadoAI` : `${article.title} | MercadoAI`
+  const metaDescription = (article.meta_description ?? article.excerpt ?? article.title).slice(0, 160)
   const canonicalUrl = `${SITE_URL}/artigo/${params.slug}`
-  const publishedDate = new Date(article.published_at).toISOString()
-  const modifiedDate = new Date(article.updated_at).toISOString()
 
   return {
     title: metaTitle,
     description: metaDescription,
-    keywords: metaKeywords,
-    authors: [{ name: article.author_name ?? SITE_NAME }],
+    keywords: article.meta_keywords ?? `${article.title}, ${article.category}, ${article.type}, MercadoAI`,
+    authors: [{ name: article.author_name ?? 'MercadoAI' }],
     alternates: { canonical: canonicalUrl },
     openGraph: {
       type: 'article',
       title: metaTitle,
       description: metaDescription,
       url: canonicalUrl,
-      siteName: SITE_NAME,
+      siteName: 'MercadoAI',
       locale: 'pt_BR',
-      images: article.cover_image
-        ? [
-            {
-              url: article.cover_image,
-              width: 1200,
-              height: 630,
-              alt: article.title,
-              type: 'image/jpeg',
-            },
-          ]
-        : [],
-      publishedTime: publishedDate,
-      modifiedTime: modifiedDate,
-      authors: [article.author_name ?? SITE_NAME],
+      images: article.cover_image ? [{ url: article.cover_image, width: 1200, height: 630, alt: article.title }] : [],
+      publishedTime: article.published_at,
+      modifiedTime: article.updated_at,
+      authors: [article.author_name ?? 'MercadoAI'],
       section: article.category,
-      tags: [article.type, article.category],
     },
     twitter: {
       card: article.cover_image ? 'summary_large_image' : 'summary',
@@ -96,381 +68,324 @@ export async function generateMetadata({
       description: metaDescription,
       images: article.cover_image ? [article.cover_image] : [],
       site: '@mercadoai',
-      creator: '@mercadoai',
     },
-    robots: {
-      index: true,
-      follow: true,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
-      'max-video-preview': -1,
-    },
-    other: {
-      'Last-modified': modifiedDate,
-    },
+    robots: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
   }
 }
 
-export default async function ArticlePage({
-  params,
-}: {
-  params: { slug: string }
-}) {
+export default async function ArticlePage({ params }: { params: { slug: string } }) {
   const supabase = await createClient()
 
-  // Buscar o artigo
-  const { data: article, error: articleError } = await supabase
+  const { data: article } = await supabase
     .from('articles')
     .select('*')
     .eq('slug', params.slug)
     .maybeSingle()
 
-  if (articleError || !article) {
-    notFound()
-  }
+  if (!article) notFound()
 
-  // Buscar produtos relacionados (se houver)
+  // Produtos em destaque do artigo
   let featuredProducts: Product[] = []
-  if (article.featured_product_ids && article.featured_product_ids.length > 0) {
-    const { data: products, error: productsError } = await supabase
+  if (article.featured_product_ids?.length) {
+    const { data } = await supabase
       .from('products')
       .select('*')
       .in('id', article.featured_product_ids)
       .eq('is_active', true)
-
-    if (!productsError && products) {
-      featuredProducts = products
-    }
+      .limit(3)
+    featuredProducts = data ?? []
   }
 
-  // Buscar artigos relacionados
-  let relatedArticles: Article[] = []
-  if (article.related_article_ids && article.related_article_ids.length > 0) {
-    const { data: articles, error: articlesError } = await supabase
-      .from('articles')
+  // Fallback: produtos da mesma categoria se não houver produtos vinculados
+  if (!featuredProducts.length) {
+    const { data } = await supabase
+      .from('products')
       .select('*')
-      .in('id', article.related_article_ids)
-      .order('published_at', { ascending: false })
-
-    if (!articlesError && articles) {
-      relatedArticles = articles
-    }
+      .eq('category', article.category)
+      .eq('is_active', true)
+      .order('is_featured', { ascending: false })
+      .limit(3)
+    featuredProducts = data ?? []
   }
 
-  // Formatar datas
-  const publishedDate = new Date(article.published_at).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  })
+  const categorySlug = CATEGORY_SLUGS[article.category] ?? article.category.toLowerCase()
+  const articleUrl = `${SITE_URL}/artigo/${params.slug}`
 
-  const modifiedDate = new Date(article.updated_at).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  })
+  // Tags para exibição
+  const tags = [
+    `#${article.category.replace(/\s+/g, '')}`,
+    `#${article.type.replace(/\s+/g, '')}`,
+    '#Mercadoai',
+    '#CompararPreços',
+  ]
 
-  // Gerar Schema.org JSON-LD para Article
+  // JSON-LD Schema
   const articleSchema = {
     '@context': 'https://schema.org',
     '@type': article.type === 'Review' ? 'Review' : 'Article',
     headline: article.title,
     description: article.excerpt ?? article.title,
-    ...(article.cover_image ? {
-      image: {
-        '@type': 'ImageObject',
-        url: article.cover_image,
-        width: 1200,
-        height: 630,
-      },
-    } : {}),
-    author: {
-      '@type': 'Person',
-      name: article.author_name ?? 'MercadoAI',
-      ...(article.author_avatar ? { image: article.author_avatar } : {}),
-    },
-    publisher: {
-      '@type': 'Organization',
-      name: 'MercadoAI',
-      logo: {
-        '@type': 'ImageObject',
-        url: `${SITE_URL}/logo.png`,
-        width: 600,
-        height: 60,
-      },
-    },
+    image: article.cover_image ? { '@type': 'ImageObject', url: article.cover_image, width: 1200, height: 630 } : undefined,
+    author: { '@type': 'Person', name: article.author_name ?? 'MercadoAI' },
+    publisher: { '@type': 'Organization', name: 'MercadoAI', logo: { '@type': 'ImageObject', url: `${SITE_URL}/logo.png` } },
     datePublished: article.published_at,
     dateModified: article.updated_at,
-    mainEntityOfPage: {
-      '@id': `${SITE_URL}/artigo/${params.slug}`,
-    },
-    ...(article.type === 'Review' ? {
-      reviewBody: article.content ?? '',
-    } : {}),
+    mainEntityOfPage: { '@id': articleUrl },
   }
 
-  // Gerar Schema.org JSON-LD para BreadcrumbList
   const breadcrumbSchema = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
-    'itemListElement': [
-      {
-        '@type': 'ListItem',
-        'position': 1,
-        'name': 'Início',
-        'item': `${SITE_URL}/`,
-      },
-      {
-        '@type': 'ListItem',
-        'position': 2,
-        'name': article.category,
-        'item': `${SITE_URL}/categoria/${encodeURIComponent(article.category)}`,
-      },
-      {
-        '@type': 'ListItem',
-        'position': 3,
-        'name': article.title,
-        'item': `${SITE_URL}/artigo/${params.slug}`,
-      },
-    ],
-  }
-
-  // Gerar Schema.org JSON-LD para Organization
-  const organizationSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    'name': 'MercadoAI',
-    'url': SITE_URL,
-    'logo': {
-      '@type': 'ImageObject',
-      'url': `${SITE_URL}/logo.png`,
-      'width': 600,
-      'height': 60,
-      'caption': 'MercadoAI - Comparativos e Reviews de Produtos',
-    },
-    'sameAs': [
-      `${SITE_URL}`,
-      'https://www.facebook.com/mercadoai',
-      'https://www.instagram.com/mercadoai',
-      'https://www.youtube.com/@mercadoai',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+      { '@type': 'ListItem', position: 2, name: 'Artigos', item: `${SITE_URL}/articles` },
+      { '@type': 'ListItem', position: 3, name: article.category, item: `${SITE_URL}/categoria/${categorySlug}` },
+      { '@type': 'ListItem', position: 4, name: article.title, item: articleUrl },
     ],
   }
 
   return (
-    <div className="pt-104">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Breadcrumb */}
-        <nav className="mb-8" aria-label="Breadcrumb">
-          <ol className="flex items-center space-x-2 text-sm text-gray-500">
-            <li>
-              <a href="/" className="hover:text-gray-900 transition-colors">
-                Início
-              </a>
-            </li>
-            <li>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </li>
-            <li>
-              <a href={`/categoria/${encodeURIComponent(article.category)}`} className="hover:text-gray-900 transition-colors">
-                {article.category}
-              </a>
-            </li>
-            <li>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </li>
-            <li className="text-gray-900 font-medium">
-              {article.title}
-            </li>
-          </ol>
-        </nav>
+    <div className="pt-[104px] bg-white">
 
-        <article className="prose prose-lg max-w-none mx-auto">
-          <header className="mb-8">
-            <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mb-4">
+      {/* Breadcrumb */}
+      <div className="border-b border-gray-100 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+          <nav className="flex items-center gap-1.5 text-xs text-gray-400 flex-wrap" aria-label="Breadcrumb">
+            <Link href="/" className="hover:text-gray-600 transition-colors">Home</Link>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <Link href="/articles" className="hover:text-gray-600 transition-colors">Artigos</Link>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <Link href={`/categoria/${categorySlug}`} className="hover:text-gray-600 transition-colors">
               {article.category}
+            </Link>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="text-gray-600 truncate max-w-xs">{article.title}</span>
+          </nav>
+        </div>
+      </div>
+
+      {/* Cover image — full width */}
+      {article.cover_image && (
+        <div className="w-full bg-gray-100 overflow-hidden" style={{ maxHeight: '480px' }}>
+          <img
+            src={article.cover_image}
+            alt={article.title}
+            className="w-full h-full object-cover object-center"
+            style={{ maxHeight: '480px' }}
+            fetchPriority="high"
+          />
+        </div>
+      )}
+
+      {/* Main layout */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="flex flex-col lg:flex-row gap-10">
+
+          {/* ── Conteúdo principal ── */}
+          <article className="flex-1 min-w-0" itemScope itemType="https://schema.org/Article">
+
+            {/* Badges */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${TYPE_COLORS[article.type] ?? 'bg-gray-100 text-gray-700'}`}>
+                {article.type}
+              </span>
+              <Link
+                href={`/categoria/${categorySlug}`}
+                className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+              >
+                {article.category}
+              </Link>
             </div>
 
-            <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium mb-4">
-              <span className={`px-2 py-1 rounded ${TYPE_COLORS[article.type] ?? 'bg-stone-100 text-stone-600'}`}>
-                {article.type}
+            {/* Título */}
+            <h1
+              className="text-3xl md:text-4xl font-black text-gray-900 leading-tight mb-4"
+              itemProp="headline"
+            >
+              {article.title}
+            </h1>
+
+            {/* Author row */}
+            <div className="flex items-center gap-4 text-sm text-gray-500 mb-8 pb-6 border-b border-gray-100 flex-wrap">
+              <div className="flex items-center gap-2">
+                {article.author_avatar ? (
+                  <img src={article.author_avatar} alt={article.author_name ?? ''} className="w-7 h-7 rounded-full object-cover" />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center">
+                    <span className="text-orange-600 text-xs font-bold">{(article.author_name ?? 'M')[0]}</span>
+                  </div>
+                )}
+                <span className="font-medium text-gray-700" itemProp="author">
+                  {article.author_name ?? 'Equipe Mercadoai'}
+                </span>
+              </div>
+              <time dateTime={article.published_at} itemProp="datePublished" className="text-gray-400">
+                {formatDate(article.published_at)}
+              </time>
+              <span className="flex items-center gap-1 text-gray-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {article.read_time} min de leitura
+              </span>
+              <span className="flex items-center gap-1 text-gray-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                {article.views} visualizações
               </span>
             </div>
 
-            <h1 className="text-4xl font-bold text-gray-900 mb-6">{article.title}</h1>
-
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-6">
-              <span>{article.author_name ?? 'MercadoAI'}</span>
-              <span>•</span>
-              <time dateTime={article.published_at}>{publishedDate}</time>
-              <span>•</span>
-              <span>{article.read_time} min de leitura</span>
-              <span>•</span>
-              <span>{article.views} visualizações</span>
-            </div>
-
+            {/* Lead / Excerpt */}
             {article.excerpt && (
-              <p className="text-xl text-gray-600 mb-8">{article.excerpt}</p>
+              <div className="border-l-4 border-orange-500 pl-4 mb-8">
+                <p className="text-base md:text-lg font-semibold text-gray-800 leading-relaxed italic">
+                  {article.excerpt}
+                </p>
+              </div>
             )}
-          </header>
 
-          {/* Cover Image */}
-          {article.cover_image && (
-            <figure className="mb-12 rounded-lg overflow-hidden shadow-lg">
-              <img
-                src={article.cover_image}
-                alt={article.title}
-                className="w-full h-auto object-cover"
-                width={1200}
-                height={630}
-              />
-              <figcaption className="text-center text-sm text-gray-500 mt-2">
-                {article.title}
-              </figcaption>
-            </figure>
-          )}
-
-          {/* Article Content */}
-          <div className="article-content">
+            {/* Article content */}
             {article.content && (
               <div
+                className="prose prose-gray prose-lg max-w-none
+                  prose-headings:font-bold prose-headings:text-gray-900
+                  prose-p:text-gray-700 prose-p:leading-relaxed
+                  prose-a:text-orange-600 prose-a:no-underline hover:prose-a:underline
+                  prose-blockquote:border-l-4 prose-blockquote:border-orange-500 prose-blockquote:bg-orange-50 prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:rounded-r-lg prose-blockquote:italic prose-blockquote:text-gray-700
+                  prose-img:rounded-xl prose-img:shadow-md
+                  prose-strong:text-gray-900"
                 dangerouslySetInnerHTML={{ __html: article.content }}
-                className="prose prose-lg max-w-none"
+                itemProp="articleBody"
               />
             )}
-          </div>
 
-          {/* Featured Products */}
-          {featuredProducts.length > 0 && (
-            <section className="mt-16">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Produtos em destaque</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {featuredProducts.map((product) => (
-                  <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-300">
-                    <div className="p-6">
-                      <div className="flex items-start gap-4">
-                        {product.image_url && (
+            {/* Tags */}
+            <div className="mt-10 pt-6 border-t border-gray-100">
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-sm font-medium hover:bg-gray-200 transition-colors cursor-default"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Compartilhar */}
+            <div className="mt-8 pt-6 border-t border-gray-100">
+              <p className="text-sm font-semibold text-gray-700 mb-3">Compartilhar este artigo:</p>
+              <ShareButtons url={articleUrl} title={article.title} />
+            </div>
+
+            {/* Author bio */}
+            <div className="mt-10 pt-8 border-t border-gray-100">
+              <div className="flex items-start gap-4">
+                {article.author_avatar ? (
+                  <img
+                    src={article.author_avatar}
+                    alt={article.author_name ?? ''}
+                    className="w-14 h-14 rounded-full object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                    <span className="text-orange-600 text-xl font-bold">
+                      {(article.author_name ?? 'M')[0]}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <p className="font-bold text-gray-900">{article.author_name ?? 'Equipe Mercadoai'}</p>
+                  <p className="text-sm text-orange-500 font-medium mb-2">Editor Sênior · Mercadoai</p>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    Especialista em tecnologia e comparação de produtos com mais de 8 anos de experiência analisando eletrônicos, gadgets e as melhores ofertas do mercado brasileiro.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          {/* ── Sidebar ── */}
+          <aside className="lg:w-72 flex-shrink-0 space-y-6">
+
+            {/* Produtos em Destaque */}
+            {featuredProducts.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+                  <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                  </svg>
+                  <h3 className="font-bold text-gray-900 text-sm">Produtos em Destaque</h3>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {featuredProducts.map((product) => (
+                    <Link
+                      key={product.id}
+                      href={`/produto/${product.slug}`}
+                      className="flex items-start gap-3 p-4 hover:bg-gray-50 transition-colors group"
+                    >
+                      <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                        {product.image_url ? (
                           <img
                             src={product.image_url}
                             alt={product.name}
-                            className="w-16 h-16 object-cover rounded-lg"
-                            width={64}
-                            height={64}
+                            className="w-full h-full object-contain p-1"
                           />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 line-clamp-2">{product.name}</h3>
-                          <p className="text-sm text-gray-600 mt-1">{product.brand}</p>
-                          <div className="flex items-center mt-2">
-                            <span className="text-lg font-bold text-gray-900">{formatBRL(product.price)}</span>
-                            {product.original_price && product.original_price > product.price && (
-                              <span className="ml-2 text-sm text-gray-500 line-through">
-                                {formatBRL(product.original_price)}
-                              </span>
-                            )}
-                            {product.discount_pct && product.discount_pct > 0 && (
-                              <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-800 text-xs font-bold rounded">
-                                -{product.discount_pct}%
-                              </span>
-                            )}
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-2xl opacity-20">📦</span>
                           </div>
-                          {product.affiliate_url && (
-                            <a
-                              href={product.affiliate_url}
-                              target="_blank"
-                              rel="nofollow noopener noreferrer"
-                              className="mt-3 inline-flex items-center text-blue-600 font-medium hover:text-blue-800 transition-colors"
-                            >
-                              Ver preço no marketplace
-                              <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                              </svg>
-                            </a>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gray-800 line-clamp-2 group-hover:text-orange-600 transition-colors leading-tight mb-1">
+                          {product.name}
+                        </p>
+                        {product.original_price && product.original_price > product.price && (
+                          <p className="text-xs text-gray-400 line-through">
+                            {formatBRL(product.original_price)}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black text-gray-900">{formatBRL(product.price)}</span>
+                          {product.discount_pct && product.discount_pct > 0 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold">
+                              -{product.discount_pct}%
+                            </span>
                           )}
                         </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    </Link>
+                  ))}
+                </div>
               </div>
-            </section>
-          )}
+            )}
 
-          {/* Related Articles */}
-          {relatedArticles.length > 0 && (
-            <section className="mt-16">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Leia também</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {relatedArticles.map((a) => (
-                  <a
-                    key={a.id}
-                    href={`/artigo/${a.slug}`}
-                    className="group block p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all duration-300"
-                  >
-                    <div className="flex items-start gap-4">
-                      {a.cover_image && (
-                        <img
-                          src={a.cover_image}
-                          alt={a.title}
-                          className="w-16 h-16 object-cover rounded-lg"
-                          width={64}
-                          height={64}
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-stone-100 text-stone-600 mb-2">
-                          {a.category}
-                        </div>
-                        <div className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold mb-2">
-                          <span className={`px-2 py-0.5 rounded-full ${TYPE_COLORS[a.type] ?? 'bg-stone-100 text-stone-600'}`}>
-                            {a.type}
-                          </span>
-                        </div>
-                        <p className="text-sm font-semibold text-stone-800 mt-2 line-clamp-2 group-hover:text-orange-600 transition-colors">
-                          {a.title}
-                        </p>
-                        <p className="text-xs text-stone-400 mt-2 flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          {a.read_time} min de leitura
-                        </p>
-                      </div>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Article Footer */}
-          <footer className="mt-16 pt-8 border-t border-gray-200">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="text-sm text-gray-500">
-                  Última atualização: <time dateTime={article.updated_at}>{modifiedDate}</time>
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <a
-                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(article.title)}&url=${encodeURIComponent(`${SITE_URL}/artigo/${params.slug}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-500 hover:text-blue-400 transition-colors"
-                  aria-label="Compartilhar no X (Twitter)"
-                >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>
-                </a>
-              </div>
+            {/* Newsletter sidebar */}
+            <div className="bg-gray-900 rounded-xl p-5">
+              <h3 className="font-bold text-white text-sm mb-1">Receba as melhores ofertas</h3>
+              <p className="text-gray-400 text-xs mb-4 leading-relaxed">
+                Cadastre seu e-mail e nunca perca uma oferta incrível.
+              </p>
+              <NewsletterForm dark />
             </div>
-          </footer>
-        </article>
+
+          </aside>
+        </div>
       </div>
+
+      {/* JSON-LD */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
     </div>
   )
 }
