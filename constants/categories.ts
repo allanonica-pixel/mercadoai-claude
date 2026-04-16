@@ -38,4 +38,12 @@ export const TYPE_COLORS: Record<string, string> = {
   'Notícias':       'bg-rose-100 text-rose-700',
 }
 
+// Rótulos de exibição para o usuário final
+export const TYPE_LABELS: Record<string, string> = {
+  'Review':         'Artigo',
+  'Comparativo':    'Comparativo',
+  'Guia de Compra': 'Guia de Compra',
+  'Notícias':       'Notícias',
+}
+
 export const DEFAULT_AUTHOR_NAME = 'Equipe Mercadoai'

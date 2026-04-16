@@ -15,7 +15,7 @@ const slides = [
     title: 'Smartphones com melhor custo-benefício',
     subtitle: 'Reviews honestos dos principais lançamentos — sem patrocinadoras, sem viés',
     cta: 'Ver reviews',
-    href: '/articles?categoria=Review',
+    href: '/artigos',
     bg: 'bg-gradient-to-br from-zinc-900 via-neutral-800 to-stone-900',
   },
   {

@@ -10,7 +10,7 @@ export default function Footer() {
 
   const resources = [
     { label: 'Guias de Compra', href: '/guias' },
-    { label: 'Reviews', href: '/articles?categoria=Review' },
+    { label: 'Artigos', href: '/artigos' },
     { label: 'Melhores Ofertas', href: '/ofertas' },
     { label: 'Comparativos', href: '/comparativo' },
     { label: 'Sobre Nós', href: '/sobrenos' },

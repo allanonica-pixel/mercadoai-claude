@@ -44,7 +44,7 @@ export default async function ReviewsPage() {
       '@type': 'BreadcrumbList',
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: 'Início', item: `${SITE_URL}/` },
-        { '@type': 'ListItem', position: 2, name: 'Artigos', item: `${SITE_URL}/articles` },
+        { '@type': 'ListItem', position: 2, name: 'Artigos', item: `${SITE_URL}/artigos` },
         { '@type': 'ListItem', position: 3, name: 'Reviews', item: `${SITE_URL}/reviews` },
       ],
     },
@@ -84,7 +84,7 @@ export default async function ReviewsPage() {
 
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-gray-400 mb-8" aria-label="Breadcrumb">
-          <Link href="/articles" className="hover:text-gray-700 transition-colors">Todos os artigos</Link>
+          <Link href="/artigos" className="hover:text-gray-700 transition-colors">Todos os artigos</Link>
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
@@ -103,7 +103,7 @@ export default async function ReviewsPage() {
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <span className="text-6xl mb-4">📝</span>
             <p className="text-lg font-semibold text-gray-700">Nenhum review encontrado</p>
-            <Link href="/articles" className="mt-4 text-orange-500 font-medium hover:underline text-sm">
+            <Link href="/artigos" className="mt-4 text-orange-500 font-medium hover:underline text-sm">
               Ver todos os artigos
             </Link>
           </div>

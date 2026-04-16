@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Article } from '@/lib/supabase/types'
-import { TYPE_COLORS } from '@/constants/categories'
+import { TYPE_COLORS, TYPE_LABELS } from '@/constants/categories'
 import { formatDate } from '@/lib/utils'
 
 interface ArticleCardProps {
@@ -38,7 +38,7 @@ export default function ArticleCard({ article, showType = true }: ArticleCardPro
         {/* Type badge */}
         {showType && (
           <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold mb-3 ${TYPE_COLORS[article.type] ?? 'bg-gray-100 text-gray-700'}`}>
-            {article.type}
+            {TYPE_LABELS[article.type] ?? article.type}
           </span>
         )}
 

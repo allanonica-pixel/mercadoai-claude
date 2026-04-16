@@ -59,7 +59,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 }
 
 const categoryBar = [
-  { label: 'Todos', href: '/articles' },
+  { label: 'Todos', href: '/artigos' },
   { label: 'Eletrônicos', href: '/categoria/eletronicos' },
   { label: 'Smartphones', href: '/categoria/smartphones' },
   { label: 'Notebooks', href: '/categoria/notebooks' },
@@ -160,7 +160,7 @@ export default function Navbar() {
 
             <span className="w-px h-5 bg-gray-200 mx-1" />
 
-            {navLink('/articles?categoria=Review', 'Reviews')}
+            {navLink('/artigos', 'Artigos')}
             {navLink('/comparativo', 'Comparativos')}
             {navLink('/noticias', 'Notícias')}
             {navLink('/guias', 'Guias')}
@@ -206,7 +206,7 @@ export default function Navbar() {
           <div className="lg:hidden bg-white border-t border-gray-100 px-4 py-4 space-y-1">
             <Link href="/" onClick={() => setMobileOpen(false)} className="block py-2 text-sm font-medium text-gray-700 hover:text-orange-500">Início</Link>
             <Link href="/ofertas" onClick={() => setMobileOpen(false)} className="block py-2 text-sm font-medium text-gray-700 hover:text-orange-500">Ofertas</Link>
-            <Link href="/articles?categoria=Review" onClick={() => setMobileOpen(false)} className="block py-2 text-sm font-medium text-gray-700 hover:text-orange-500">Reviews</Link>
+            <Link href="/artigos" onClick={() => setMobileOpen(false)} className="block py-2 text-sm font-medium text-gray-700 hover:text-orange-500">Artigos</Link>
             <Link href="/comparativo" onClick={() => setMobileOpen(false)} className="block py-2 text-sm font-medium text-gray-700 hover:text-orange-500">Comparativos</Link>
             <Link href="/noticias" onClick={() => setMobileOpen(false)} className="block py-2 text-sm font-medium text-gray-700 hover:text-orange-500">Notícias</Link>
             <Link href="/guias" onClick={() => setMobileOpen(false)} className="block py-2 text-sm font-medium text-gray-700 hover:text-orange-500">Guias de Compra</Link>
@@ -259,7 +259,7 @@ export default function Navbar() {
             </Link>
 
             <Link
-              href="/articles"
+              href="/artigos"
               className="flex-shrink-0 ml-auto text-xs font-medium text-orange-500 hover:text-orange-700 transition-colors whitespace-nowrap pl-4"
             >
               Ver todas →
